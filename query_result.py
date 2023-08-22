@@ -1,17 +1,113 @@
-import datetime
+import datetime, os
 from xlsxwriter import Workbook
 import tkinter as tk
 from tkinter import filedialog
-
-def abrir_arquivo():
-    arquivo = filedialog.askopenfilename(title="Selecione um arquivo", filetypes=[("Arquivos de Texto", "*.txt"), ("Todos os Arquivos", "*.*")])
-    if arquivo:
-        print(f"Arquivo selecionado: {arquivo}")
-    return arquivo
+from tkinter import *
+from PIL import Image, ImageTk
+import webbrowser
 
 
 def query_to_excel():
 
+    # Crie uma janela principal
+    root = Tk()
+    root.title('Query Result')
+
+    Application(root)
+
+    # Inicie o loop principal da interface gráfica
+    root.mainloop()
+
+
+
+class Application():
+    def __init__(self, master=None):
+        self.arquivo_query = StringVar()
+        self.path_saida = StringVar()
+        # criar widget acoplado ao todo (master)
+        self.container_titulo = Frame(master)
+        self.container_titulo.pack()
+
+        # criar widget acoplado ao todo (master)
+        self.container_entrada = Frame(master, pady=20, padx=50)
+        self.container_entrada.pack()
+
+        # criar widget acoplado ao todo (master)
+        self.container_saida = Frame(master, pady=20, padx=50)
+        self.container_saida.pack()
+
+        # criar label acoplado ao container_titulo
+        self.titulo = Label(self.container_titulo, text='Query Result')
+        self.titulo.pack()
+
+        # criar label acoplado ao container_entrada
+        self.lbl_entrada = Label(self.container_entrada, text='Arquivo de entrada:', padx=10)
+        self.lbl_entrada.pack(side=LEFT)
+
+        # criar box acoplado ao container_entrada
+        self.arquivo_query_box = Entry(self.container_entrada, width=80, state=DISABLED, textvariable=self.arquivo_query)
+        self.arquivo_query_box.pack(side=LEFT)
+
+        # criar botão acoplado ao container_entrada
+        self.abrir_arquivo = Button(self.container_entrada, text='Selecionar Arquivo', width=15)
+        # outra forma de definir atributos:
+        # self.abrir_arquivo["width"] = 15
+        self.abrir_arquivo['command'] = self.buscar_arquivo
+        self.abrir_arquivo.pack(side=LEFT)
+
+        # criar label acoplado ao container_saida
+        self.lbl_path = Label(self.container_saida, text='Destino:', padx=10)
+        self.lbl_path.pack(side=LEFT)
+
+        # criar box acoplado ao container_entrada
+        self.path_saida_box = Entry(self.container_saida, width=50, state=DISABLED, textvariable=self.path_saida)
+        self.path_saida_box.pack(side=LEFT)
+
+
+        # criar botão acoplado ao container_saida
+        self.run = Button(self.container_saida, text='Exportar Excel', state=DISABLED, width=15)
+        # outra forma de definir atributos:
+        self.run['command'] = self.exportar_excel
+        self.run.pack(side=RIGHT)
+
+        # Carregue o ícone de fonte do GitHub
+        github_icon = Image.open("https://www.bing.com/images/search?q=github%20icon&FORM=IQFRBA&id=EE32B441FC8420E8F752AFC48D52F704058BCB7B")  # Substitua pelo caminho do seu arquivo .ttf
+        github_icon = github_icon.resize((32, 32), Image.ANTIALIAS)
+        github_icon = ImageTk.PhotoImage(github_icon)
+
+        # Crie o botão com o ícone do GitHub
+        botao = Button(master, text="Abrir Repositório", image=github_icon, command=self.abrir_repositorio, compound=tk.LEFT)
+        botao.pack(pady=20)
+
+    def buscar_arquivo(self, event=None):
+        arquivo = filedialog.askopenfilename(title="Selecione um arquivo", 
+                                                    filetypes=[("Arquivos de Texto", "*.txt"), 
+                                                               ("Todos os Arquivos", "*.*")])
+        
+        if arquivo:
+            self.arquivo_query.set(arquivo) 
+            print(f"Arquivo selecionado: {self.arquivo_query.get()}")
+            self.run['state'] = 'active'
+            self.path_saida.set(os.path.dirname(arquivo))
+            
+
+    def exportar_excel(self, event=None):
+        # arq_query_result = open('D:\\SC\\query_resut.txt', 'r')
+        arq_query_result = open(self.arquivo_query.get(), 'r')
+
+        query_result = arq_query_result.readlines()
+
+        # despreza primeira coluna do header '#'
+        header = Util.procura_header(query_result)[1:]
+        dados = Util.procura_linhas(query_result)
+
+        Util.gerar_excel(header, dados, self.path_saida.get())
+        
+    def abrir_repo(self, event=None):
+        url = "https://github.com/seu-usuario/seu-repositorio"
+        webbrowser.open_new(url)
+
+class Util:
     # modelo a trabalhar
     #                 +-----------------³----------------------------³--------------³-----------³ 
     # (cabeçalho)     ³   id_da_venda   ³      data_da_venda         ³   cliente    ³  produto  ³        
@@ -19,29 +115,6 @@ def query_to_excel():
     # (linha)       1_³    202300000001 ³ 2023-06-15-10.30.45.123456 ³ Cliente A    ³ Produto X ³        
     #                 +-----------------³----------------------------³--------------³-----------³ 
 
-    # Crie uma janela principal
-    root = tk.Tk()
-
-    # Crie um botão que, quando clicado, abre a caixa de diálogo de abertura de arquivo
-    botao = tk.Button(root, text="Abrir Arquivo", command=abrir_arquivo)
-    botao.pack()
-
-    # Inicie o loop principal da interface gráfica
-    # root.mainloop()
-
-    # arq_query_result = open('D:\\SC\\query_resut.txt', 'r')
-    arq_query_result = open(abrir_arquivo(), 'r')
-
-    query_result = arq_query_result.readlines()
-
-    # despreza primeira coluna do header '#'
-    header = Util.procura_header(query_result)[1:]
-    dados = Util.procura_linhas(query_result)
-
-    Util.gerar_excel(header, dados)
-
-
-class Util:
     num_col = 0
     ARG_HEADER = ' ³ '
     ARG_LINHA = '_³ '
@@ -105,23 +178,26 @@ class Util:
         return (linhas, colunas)
     
     @classmethod
-    def gerar_csv(cls, header, dados):
+    def gerar_csv(cls, header, dados, path_arquivo):
         csv_result = []
         csv_result.append(';'.join(header) + '\n')
         for chave in dados:
             csv_result.append(';'.join(dados[chave]) + '\n')
 
         datahora = datetime.datetime.now().strftime("%d%m%Y_%H%M%S")
-        nome_arquivo = 'arq_result{}.txt'.format(datahora)
+        nome_arquivo = '{}\\arq_result{}.csv'.format(path_arquivo, datahora)
         arq_result_csv = open(nome_arquivo, 'w')
         arq_result_csv.writelines(csv_result)
 
     @classmethod
-    def gerar_excel(cls, header, dados):
+    def gerar_excel(cls, header, dados, path_arquivo):
         tamanho_planilha = Util.definir_tamanho_planilha(dados)
 
         # criar arquivo excel
-        workbook = Workbook('query_result.xlsx')
+        datahora = datetime.datetime.now().strftime("%d%m%Y_%H%M%S")
+        nome_arquivo = '{}\\arq_result-{}.xlsx'.format(path_arquivo, datahora)
+
+        workbook = Workbook('nome_arquivo')
         planilha = workbook.add_worksheet('QueryResult')
 
         # definir tamanho das colunas (col_ini, col_fim, tam)
@@ -139,6 +215,7 @@ class Util:
         # planilha.write(1, 1, header[0], estilo_texto)
 
         workbook.close()
+        os.system(f'start excel "{nome_arquivo}"')
     
     @classmethod
     def header_para_xlsxwriter(cls, header):
