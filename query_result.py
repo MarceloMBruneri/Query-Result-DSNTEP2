@@ -71,13 +71,13 @@ class Application():
         self.run.pack(side=RIGHT)
 
         # Carregue o ícone de fonte do GitHub
-        github_icon = Image.open("https://www.bing.com/images/search?q=github%20icon&FORM=IQFRBA&id=EE32B441FC8420E8F752AFC48D52F704058BCB7B")  # Substitua pelo caminho do seu arquivo .ttf
-        github_icon = github_icon.resize((32, 32), Image.ANTIALIAS)
-        github_icon = ImageTk.PhotoImage(github_icon)
+        # github_icon = Image.open("github-mark.png")  # Substitua pelo caminho do seu arquivo .ttf
+        # github_icon = github_icon.resize((32, 32), Image.ADAPTIVE)
+        # github_icon = ImageTk.PhotoImage(github_icon)
 
-        # Crie o botão com o ícone do GitHub
-        botao = Button(master, text="Abrir Repositório", image=github_icon, command=self.abrir_repositorio, compound=tk.LEFT)
-        botao.pack(pady=20)
+        # # Crie o botão com o ícone do GitHub
+        # botao = Button(master, text="Abrir Repositório", image=github_icon, command=self.abrir_repo, compound=tk.LEFT)
+        # botao.pack(pady=20)
 
     def buscar_arquivo(self, event=None):
         arquivo = filedialog.askopenfilename(title="Selecione um arquivo", 
@@ -97,14 +97,16 @@ class Application():
 
         query_result = arq_query_result.readlines()
 
-        # despreza primeira coluna do header '#'
-        header = Util.procura_header(query_result)[1:]
         dados = Util.procura_linhas(query_result)
+        if dados:
+            header = Util.procura_header(query_result, len(dados[1]))
+        else:
+            print('Dados não encontrados')
 
         Util.gerar_excel(header, dados, self.path_saida.get())
         
     def abrir_repo(self, event=None):
-        url = "https://github.com/seu-usuario/seu-repositorio"
+        url = "https://github.com/MarceloMBruneri/Query-Result-DSNTEP2"
         webbrowser.open_new(url)
 
 class Util:
@@ -128,19 +130,17 @@ class Util:
     @classmethod
     def quebra_header(cls, linha_header):
         colunas_header = []
-        for i, coluna in enumerate(Util.quebra_linha(linha_header)):
+        # despreza primeira coluna em branco
+        for coluna in Util.quebra_linha(linha_header)[1:]:
             if coluna == '':
-                if i == 0:
-                    coluna = '#'
-                else:
-                    Util.num_col =+ 1 
-                    coluna = 'COL_' + str(Util.num_col)
+                Util.num_col =+ 1 
+                coluna = 'COL_' + str(Util.num_col)
             colunas_header.append(coluna)
 
         return colunas_header
 
     @classmethod
-    def procura_header(cls, query_result):
+    def procura_header(cls, query_result, max_colunas=999):
 
         header_colunas = []
 
@@ -149,11 +149,11 @@ class Util:
                 if len(header_colunas) == 0:
                     header_colunas = Util.quebra_header(linha)
                 # se a primeira coluna igual a primeira coluna ja registrada, o header esta completo
-                elif header_colunas[1] != Util.quebra_header(linha)[1]:
-                    # despreza primeira coluna que estará em branco
-                    header_colunas.extend(Util.quebra_header(linha)[1:])
+                elif header_colunas[1] != Util.quebra_header(linha)[0] and len(header_colunas) < max_colunas:
+                    header_colunas.extend(Util.quebra_header(linha))
                 else:
                     break
+        # despreza primeira coluna do header '#'
         return header_colunas
 
     @classmethod
@@ -185,7 +185,7 @@ class Util:
             csv_result.append(';'.join(dados[chave]) + '\n')
 
         datahora = datetime.datetime.now().strftime("%d%m%Y_%H%M%S")
-        nome_arquivo = '{}\\arq_result{}.csv'.format(path_arquivo, datahora)
+        nome_arquivo = '{}/arq_result{}.csv'.format(path_arquivo, datahora)
         arq_result_csv = open(nome_arquivo, 'w')
         arq_result_csv.writelines(csv_result)
 
@@ -195,9 +195,9 @@ class Util:
 
         # criar arquivo excel
         datahora = datetime.datetime.now().strftime("%d%m%Y_%H%M%S")
-        nome_arquivo = '{}\\arq_result-{}.xlsx'.format(path_arquivo, datahora)
+        nome_arquivo = '{}/arq_result-{}.xlsx'.format(path_arquivo, datahora)
 
-        workbook = Workbook('nome_arquivo')
+        workbook = Workbook(nome_arquivo)
         planilha = workbook.add_worksheet('QueryResult')
 
         # definir tamanho das colunas (col_ini, col_fim, tam)
@@ -205,14 +205,13 @@ class Util:
         
         # estilo_texto = workbook.add_format({'num_format': '@'})
 
+        print(header)
         planilha.add_table(0, 0, tamanho_planilha[0], tamanho_planilha[1], 
                            {'data': list(dados.values()),
                             'columns': Util.header_para_xlsxwriter(header)
                             })
         
         planilha.autofit()
-
-        # planilha.write(1, 1, header[0], estilo_texto)
 
         workbook.close()
         os.system(f'start excel "{nome_arquivo}"')
