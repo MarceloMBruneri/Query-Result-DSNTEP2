@@ -205,7 +205,6 @@ class Util:
         
         # estilo_texto = workbook.add_format({'num_format': '@'})
 
-        print(header)
         planilha.add_table(0, 0, tamanho_planilha[0], tamanho_planilha[1], 
                            {'data': list(dados.values()),
                             'columns': Util.header_para_xlsxwriter(header)
